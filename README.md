@@ -11,7 +11,7 @@ This is a working prototype of the device framework; two data integrations are n
 | Wi-Fi provisioning through a captive portal (WiFiManager) | Implemented |
 | NTP time sync, 30-minute refresh cycle with deep sleep | Implemented |
 | Split-screen layout, weather panel, calendar panel (GxEPD2) | Implemented |
-| Settings persistence in ESP32 NVS (`Preferences`) | Implemented |
+| Settings persistence in ESP32 NVS (`Preferences`) | Save and load routines exist; settings are saved after Wi-Fi setup but not yet loaded at boot |
 | IP-based location lookup (ip-api.com) | City and country are resolved; coordinates are not yet passed to the weather request |
 | OpenWeatherMap request and JSON parsing | Implemented against the One Call 2.5 endpoint, with placeholder coordinates |
 | Microsoft Graph calendar | Refresh-token exchange is implemented; the Graph request is not, so the calendar panel renders two sample events |
