@@ -5,7 +5,7 @@ This folder contains a complete Arduino sketch for the ESP32 E-Ink Weather and C
 ## Files in this Sketch
 
 - `Eink_Weather_Calendar.ino` - Main Arduino sketch file
-- `secrets.h` - Configuration file for API keys (edit this with your credentials)
+- `secrets.h.example` - Template for API keys; copy it to `secrets.h` (ignored by Git) and add your credentials
 - `config.h` - Configuration management
 - `weather.h` - Weather data structures and functions
 - `calendar.h` - Calendar data structures and functions
@@ -21,7 +21,7 @@ This folder contains a complete Arduino sketch for the ESP32 E-Ink Weather and C
    - WiFiManager by tzapu
    - Time by Paul Stoffregen
 
-4. Edit `secrets.h` with your API keys
+4. Copy `secrets.h.example` to `secrets.h` and edit it with your API keys
 5. Select the ESP32 board from the Tools menu:
    - Tools → Board → ESP32 Arduino → ESP32 Dev Module
    - Tools → Partition Scheme → "Huge APP" (to have enough space for all libraries)

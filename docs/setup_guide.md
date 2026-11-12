@@ -31,7 +31,7 @@ This guide will help you set up your ESP32 E-Ink Weather and Calendar Display.
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/eink-weather-calendar.git
+git clone https://github.com/Neuron89/eink-weather-calendar.git
 cd eink-weather-calendar
 ```
 

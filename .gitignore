@@ -1,5 +1,11 @@
 # Ignore secrets file with API keys
 include/secrets.h
+arduino_sketch/secrets.h
+arduino_version/secrets.h
+
+# Output of tools/ms_auth_helper.py (contains OAuth tokens)
+ms_tokens.json
+esp32_ms_token.h
 
 # PlatformIO build files
 .pio

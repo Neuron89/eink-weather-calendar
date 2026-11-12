@@ -1,143 +1,155 @@
-# E-Ink Weather and Calendar Display
+# eink-weather-calendar
 
-A project for ESP32 and Waveshare 7.5-inch E-Ink display that shows weather information and Microsoft Outlook calendar events on a split screen.
+ESP32 firmware for a Waveshare 7.5-inch e-ink panel that shows current weather and an hourly forecast on the left half of the screen and upcoming Microsoft Outlook calendar events on the right. The repository contains a PlatformIO project and two Arduino IDE sketches of the same design.
 
-## Hardware Requirements
+## Project status
 
-- ESP32 Development Board (ESP32 E-Paper Driver Board)
-- Waveshare 7.5-inch E-Paper HAT (H) Display
+This is a working prototype of the device framework; two data integrations are not finished. The table reflects what the code does today.
+
+| Area | State |
+|---|---|
+| Wi-Fi provisioning through a captive portal (WiFiManager) | Implemented |
+| NTP time sync, 30-minute refresh cycle with deep sleep | Implemented |
+| Split-screen layout, weather panel, calendar panel (GxEPD2) | Implemented |
+| Settings persistence in ESP32 NVS (`Preferences`) | Implemented |
+| IP-based location lookup (ip-api.com) | City and country are resolved; coordinates are not yet passed to the weather request |
+| OpenWeatherMap request and JSON parsing | Implemented against the One Call 2.5 endpoint, with placeholder coordinates |
+| Microsoft Graph calendar | Refresh-token exchange is implemented; the Graph request is not, so the calendar panel renders two sample events |
+| Weather icons | Drawn as labelled placeholder boxes; bitmap loading is not implemented |
+| Battery indicator | Drawing routine exists with fixed example values |
+
+Known build issues in the PlatformIO variant: `src/main.cpp` includes an `epd_driver.h` header that is not part of the project, `saveConfig()` is defined in both `src/main.cpp` and `src/config.cpp`, and `platformio.ini` lists library dependencies that the code does not use. The Arduino sketches are the more self-consistent starting point.
+
+## Hardware
+
+- ESP32 development board (written for the Waveshare ESP32 e-Paper Driver Board; `esp32dev` target)
+- Waveshare 7.5-inch e-paper display, driven as `GxEPD2_750_T7` (black and white)
 - USB cable for power and programming
 
-## Features
+| E-paper pin | ESP32 pin |
+|---|---|
+| BUSY | GPIO25 |
+| RST | GPIO26 |
+| DC | GPIO27 |
+| CS | GPIO15 |
+| CLK | GPIO13 |
+| DIN | GPIO14 |
+| GND | GND |
+| VCC | 3.3V |
 
-- **Split-screen display:**
-  - Left side: Weather information
-  - Right side: Microsoft Outlook calendar
+## Architecture
 
-- **Weather Features:**
-  - Location detection via IP geolocation
-  - Current weather with large icon, temperature, humidity
-  - Hourly forecast with smaller icons
+```
+OpenWeatherMap    ip-api.com    Microsoft identity / Graph
+       \              |              /
+        +---------- ESP32 ----------+
+        | WiFiManager portal        |
+        | weather + calendar fetch  |
+        | GxEPD2 renderer           |---- SPI ---- 7.5" e-ink panel
+        | NVS settings              |
+        +---------------------------+
+```
 
-- **Calendar Features:**
-  - Display of upcoming events from Microsoft Outlook
-  - Event details including time, title, and location
+On boot the firmware initialises the display, joins Wi-Fi (opening a setup access point if no credentials are stored), syncs time over NTP, fetches data, draws one full frame, and enters deep sleep for 30 minutes. More detail is in [docs/architecture.md](docs/architecture.md).
 
-- **Connectivity:**
-  - WiFi setup via captive portal
-  - Microsoft authentication for Outlook calendar access
+| Component | Library |
+|---|---|
+| Display driver and drawing | [GxEPD2](https://github.com/ZinggJM/GxEPD2) with Adafruit GFX fonts |
+| Wi-Fi provisioning | [WiFiManager](https://github.com/tzapu/WiFiManager) |
+| JSON parsing | [ArduinoJson](https://arduinojson.org/) 6.x |
+| Time | [Time](https://github.com/PaulStoffregen/Time) |
+| Storage | ESP32 `Preferences` (NVS) |
 
-## Setup Instructions
+## Repository layout
 
-### Using PlatformIO
+```
+platformio.ini         PlatformIO environment (esp32dev, Arduino framework)
+src/, include/         PlatformIO variant, split into weather, calendar, display, config modules
+arduino_sketch/        Arduino IDE sketch with the same modules as header files
+arduino_version/       Arduino IDE sketch in a single .ino file
+tools/
+  ms_auth_helper.py          Local OAuth helper that obtains a Microsoft refresh token
+  generate_weather_icons.py  Downloads OpenWeatherMap icons and converts them to 1-bit BMP
+  setup.sh                   Interactive helper for the PlatformIO variant
+docs/                  Architecture notes and setup guide
+assets/                Target directory and naming convention for weather icons
+```
 
-1. Clone this repository
-2. Open the project in PlatformIO
-3. Configure your OpenWeatherMap API key in `weather.cpp`
-4. Configure your Microsoft application credentials in `calendar.cpp`
-5. Build and upload the firmware to your ESP32
+## Getting started
 
-### Using Arduino IDE
+### Prerequisites
 
-1. Download the project files
-2. Open `src/main.cpp` in Arduino IDE (rename it to `main.ino` if needed)
-3. Install the required libraries through the Arduino Library Manager:
-   - **GxEPD2** by Jean-Marc Zingg (for E-Ink display)
-   - **ArduinoJson** by Benoit Blanchon
-   - **WiFiManager** by tzapu
-   - **Time** by Paul Stoffregen
-   - **ESP32 Arduino** framework (should be installed with ESP32 board support)
+- Arduino IDE with ESP32 board support, or PlatformIO
+- An [OpenWeatherMap API key](https://home.openweathermap.org/api_keys)
+- For calendar access: a Microsoft Entra ID (Azure AD) app registration with the delegated `Calendars.Read` and `offline_access` permissions and the redirect URI `http://localhost:8000/callback`
+- Python 3 with `requests`, `flask`, and `pillow` for the scripts in `tools/`
 
-4. Configure your board:
-   - Tools → Board → ESP32 Arduino → ESP32 Dev Module
-   - Tools → Partition Scheme → "Huge APP" (to have enough space for all libraries)
-   - Tools → Port → (select the port your ESP32 is connected to)
+### Secrets
 
-5. Create a `secrets.h` file in the same directory as your sketch with your API keys:
-   ```cpp
-   #ifndef SECRETS_H
-   #define SECRETS_H
-   
-   // OpenWeatherMap API Key
-   const char* OPENWEATHERMAP_API_KEY = "your_api_key_here";
-   
-   // Microsoft Graph API credentials
-   const char* MICROSOFT_CLIENT_ID = "your_client_id_here";
-   const char* MICROSOFT_CLIENT_SECRET = "your_client_secret_here";
-   
-   #endif // SECRETS_H
-   ```
+No credentials are committed. Each variant reads them from a `secrets.h` that is created from a tracked template and ignored by Git.
 
-6. Make sure all the project files are in the same sketch folder:
-   - Copy all `.cpp` and `.h` files from `src/` and `include/` to your sketch folder
-   - Create an `assets` folder in your sketch folder for weather icons
+| Variant | Template | Copy to |
+|---|---|---|
+| `arduino_sketch/` | `arduino_sketch/secrets.h.example` | `arduino_sketch/secrets.h` |
+| `arduino_version/` | `arduino_version/secrets.h.example` | `arduino_version/secrets.h` |
+| PlatformIO | `include/secrets_template.h` | `include/secrets.h` |
 
-7. Compile and upload to your ESP32
+| Constant | Purpose | Placeholder |
+|---|---|---|
+| `OPENWEATHERMAP_API_KEY` | OpenWeatherMap API key | `your_api_key_here` |
+| `MICROSOFT_CLIENT_ID` | App registration client ID | `your_client_id_here` |
+| `MICROSOFT_CLIENT_SECRET` | App registration client secret | `your_client_secret_here` |
+| `MICROSOFT_REDIRECT_URI` | OAuth redirect URI | `http://localhost` |
 
-## First-time Setup
+### Arduino IDE
 
-1. Power on the device
-2. Connect to the WiFi network named "EinkWeather_XXXXXX"
-3. Open a web browser and navigate to 192.168.4.1
-4. Follow the on-screen instructions to connect to your home WiFi network
-5. The device will restart and connect to your WiFi network
-6. Follow the Microsoft authentication process if prompted
+1. Copy `secrets.h.example` to `secrets.h` in the sketch folder you intend to use and fill in the values.
+2. Open `Eink_Weather_Calendar.ino` from `arduino_sketch/` (modular) or `arduino_version/` (single file).
+3. Install the libraries with the Library Manager: GxEPD2, ArduinoJson, WiFiManager, and Time.
+4. Select **Tools → Board → ESP32 Dev Module** and **Tools → Partition Scheme → Huge APP**, then choose the serial port.
+5. Compile and upload.
 
-## Hardware Connections
+### PlatformIO
 
-The Waveshare 7.5-inch E-Paper HAT (H) connects to the ESP32 E-Paper Driver Board as follows:
+```bash
+cp include/secrets_template.h include/secrets.h   # then edit the values
+pio run
+pio run --target upload
+pio device monitor
+```
 
-| E-Paper Display | ESP32 E-Paper Driver Board |
-|-----------------|----------------------------|
-| BUSY            | GPIO25                     |
-| RST             | GPIO26                     |
-| DC              | GPIO27                     |
-| CS              | GPIO15                     |
-| CLK             | GPIO13                     |
-| DIN             | GPIO14                     |
-| GND             | GND                        |
-| VCC             | 3.3V                       |
+See the known build issues under [Project status](#project-status) before building this variant. A longer walkthrough is in [docs/setup_guide.md](docs/setup_guide.md).
 
-## Power Management
+### Microsoft refresh token
 
-The device uses deep sleep mode to conserve power. It wakes up every 30 minutes to update the weather and calendar data, then goes back to sleep.
+`tools/ms_auth_helper.py` runs a local Flask server on port 8000, walks through the OAuth 2.0 authorization-code flow, and writes the resulting tokens to `ms_tokens.json` and `esp32_ms_token.h` in the current directory. Both files are ignored by Git. The script contains no credentials; it prompts for the client ID and secret at run time.
+
+```bash
+pip install requests flask
+cd tools
+python ms_auth_helper.py
+```
+
+### Weather icons
+
+`tools/generate_weather_icons.py` downloads the OpenWeatherMap icon set and writes 1-bit BMP files at 100x100 and 30x30 pixels into `assets/`. The naming convention is described in [assets/README.md](assets/README.md).
+
+## First boot
+
+1. Power the device. The display shows a Wi-Fi setup screen.
+2. Join the access point named `EinkWeather_XXXXXX` from a phone or laptop.
+3. Open `192.168.4.1` (the WiFiManager portal address) if the captive portal does not appear on its own.
+4. Enter the Wi-Fi credentials and, optionally, a location name. The portal times out after three minutes and the device restarts.
+5. After connecting, the device fetches data, draws the screen, and sleeps until the next 30-minute refresh.
+
+## Troubleshooting
+
+- **Sketch too large:** select the Huge APP partition scheme.
+- **Upload fails:** hold the BOOT button while uploading, or try another USB cable or port.
+- **Display does not update:** check the SPI wiring against the table above and power-cycle the board.
+- **Cannot join Wi-Fi:** the ESP32 supports 2.4 GHz networks only.
+- **Wrong orientation:** change the argument to `display.setRotation()` in the display initialisation.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- [GxEPD2 Library](https://github.com/ZinggJM/GxEPD2) for E-Paper display support
-- [WiFiManager](https://github.com/tzapu/WiFiManager) for the captive portal
-- [ArduinoJson](https://arduinojson.org/) for JSON parsing
-- [OpenWeatherMap](https://openweathermap.org/) for weather data
-- [Microsoft Graph API](https://developer.microsoft.com/en-us/graph) for calendar data
-
-## Troubleshooting Arduino IDE Issues
-
-### Compilation Errors
-
-- **Missing Libraries**: Make sure all required libraries are installed through the Library Manager
-- **ESP32 Support**: Ensure you have ESP32 board support installed via Boards Manager
-- **Memory Issues**: If you get memory-related errors, try changing the Partition Scheme to "Huge APP"
-- **Multiple Definitions**: If you get "multiple definition" errors, make sure you're not including .cpp files, only .h files
-
-### Upload Issues
-
-- **Port Not Found**: Make sure your ESP32 is connected and the correct port is selected
-- **Upload Failed**: Try holding the BOOT button on your ESP32 while uploading
-- **Connection Issues**: Try a different USB cable or port
-- **Driver Issues**: Make sure you have the correct USB-to-Serial drivers installed
-
-### Display Issues
-
-- **Display Not Updating**: Check the wiring connections between ESP32 and E-Ink display
-- **Partial Updates**: E-Ink displays sometimes need a full refresh; try power cycling the device
-- **Incorrect Orientation**: Adjust the rotation parameter in `display.setRotation()`
-
-### WiFi Issues
-
-- **Cannot Connect**: Make sure you're using a 2.4GHz network (ESP32 doesn't support 5GHz)
-- **Captive Portal Not Working**: Try accessing 192.168.4.1 directly in your browser
-- **Connection Drops**: Check your power supply; unstable power can cause WiFi issues
+MIT. See [LICENSE](LICENSE).

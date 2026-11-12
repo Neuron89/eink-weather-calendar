@@ -5,7 +5,7 @@ This directory contains a simplified version of the project that can be directly
 ## Files
 
 - `Eink_Weather_Calendar.ino` - Main Arduino sketch file
-- `secrets.h` - Configuration file for API keys (edit this with your credentials)
+- `secrets.h.example` - Template for API keys; copy it to `secrets.h` (ignored by Git) and add your credentials
 
 ## Setup Instructions
 
@@ -17,7 +17,7 @@ This directory contains a simplified version of the project that can be directly
    - WiFiManager by tzapu
    - Time by Paul Stoffregen
 
-3. Edit `secrets.h` with your API keys
+3. Copy `secrets.h.example` to `secrets.h` and edit it with your API keys
 4. Select the ESP32 board from the Tools menu
 5. Compile and upload to your ESP32
 
